@@ -32,6 +32,10 @@ class AppSettings(BaseSettings):
     LOGGING_LEVEL: int = INFO
     LOGGERS: tuple[str, str] = ("uvicorn.asgi", "uvicorn.access")
 
+    # DB
+    MONGODB_ATLAS_URI: str = config("MONGODB_ATLAS_URI", cast=str)  # type: ignore
+    MONGODB_URI: str = config("MONGODB_URI", cast=str)  # type: ignore
+
     # Web App Security
     JWT_TOKEN_PREFIX: str = config("JWT_TOKEN_PREFIX", cast=str)  # type: ignore
     JWT_SECRET_KEY: SecretStr = SecretStr(config("JWT_SECRET_KEY", cast=str))  # type: ignore

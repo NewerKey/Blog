@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from uvicorn import run
 
+from src.api.endpoints import router as api_router
 from src.config.events import event_manager
 from src.config.manager import settings
 
@@ -15,6 +16,7 @@ def initialize_application() -> FastAPI:
         allow_methods=settings.METHODS,
         allow_headers=settings.HEADERS,
     )
+    app.include_router(router=api_router, prefix=settings.API_PREFIX)
     return app
 
 

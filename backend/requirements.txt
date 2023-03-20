@@ -3,6 +3,7 @@ argon2_cffi
 asyncio
 bcrypt
 black
+bson
 colorama
 email-validator
 fastapi
@@ -10,12 +11,14 @@ fastapi-mail
 httpx
 isort
 loguru
+motor
 mypy
 passlib
 pre-commit
+pyjwt
+pymongo
 python-dotenv
 python-decouple
-pyjwt
 python-multipart
 python-slugify
 pytest-asyncio
