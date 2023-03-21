@@ -20,6 +20,8 @@ class DBManager:
         return AsyncIOMotorClient(self.uri)
 
     def __create_db(self) -> Database:
+        if not self.is_atlas:
+            return self.client.test
         return self.client[self.name]
 
     async def create_collections(self, collection_names: list[str]) -> None:
@@ -58,4 +60,4 @@ def get_db(is_atlas: bool = False) -> DBManager:
     return DBManager(is_atlas=is_atlas)
 
 
-db_manager = get_db(is_atlas=True)
+db_manager = get_db(is_atlas=False)

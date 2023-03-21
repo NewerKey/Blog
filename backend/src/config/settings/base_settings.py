@@ -57,14 +57,14 @@ class AppSettings(BaseSettings):
     MAIL_USERNAME: str = config("MAIL_USERNAME", cast=str)  # type: ignore
     MAIL_PASSWORD: str = config("MAIL_PASSWORD", cast=str)  # type: ignore
     MAIL_FROM: EmailStr = config("MAIL_FROM", cast=str)  # type: ignore
-    MAIL_PORT: str = config("MAIL_PORT", cast=str)  # type: ignore
+    MAIL_PORT: int = config("MAIL_PORT", cast=int)  # type: ignore
     MAIL_SERVER: str = config("MAIL_SERVER", cast=str)  # type: ignore
     MAIL_FROM_NAME: str = config("MAIL_FROM_NAME", cast=str)  # type: ignore
-    IS_MAIL_STARTTLS: bool = config("IS_MAIL_STARTTLS", cast=bool)  # type: ignore
-    IS_MAIL_SSL_TLS: bool = config("IS_MAIL_SSL_TLS", cast=bool)  # type: ignore
-    IS_MAIL_USE_CREDENTIALS: bool = config("IS_MAIL_USE_CREDENTIALS", cast=bool)  # type: ignore
-    IS_MAIL_VALIDATE_CERTS: bool = config("IS_MAIL_VALIDATE_CERTS", cast=bool)  # type: ignore
-    TEMPLATE_DIR = Path(__file__).resolve() / Path("backend") / Path(config("TEMPLATE_DIR_NAME", cast=str))  # type: ignore
+    MAIL_FROM_USERNAME: str = config("MAIL_FROM_USERNAME", cast=str)  # type: ignore
+    IS_STARTTLS: bool = config("IS_STARTTLS", cast=bool)  # type: ignore
+    IS_SSL_TLS: bool = config("IS_SSL_TLS", cast=bool)  # type: ignore
+    IS_USE_CREDENTIALS: bool = config("IS_USE_CREDENTIALS", cast=bool)  # type: ignore
+    TEMPLATE_DIR = Path().resolve() / Path(config("TEMPLATE_DIR_NAME", cast=str))  # type: ignore
 
     class Config(BaseConfig):
         case_sensitive: bool = True

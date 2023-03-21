@@ -11,6 +11,7 @@ def serialize_user(user: dict) -> dict[str, str | EmailStr | datetime | ObjectId
         "email": user["email"],
         "hashed_password": user["hashedPassword"],
         "hashed_salt": user["hashedSalt"],
+        "email_verification_code": user["emailVerificationCode"],
         "is_verified": user["isVerified"],
         "is_logged_in": user["isLoggedIn"],
         "created_at": user["createdAt"],

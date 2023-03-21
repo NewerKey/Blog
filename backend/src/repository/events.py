@@ -32,9 +32,10 @@ async def drop_db() -> None:
     logger.info(f"Local MongoDB Database --- Deleting . . .")
     try:
         await db_manager.drop_db()
-        logger.info(f"Local MongoDB Database `{db_manager.name}` --- Successfully Deleted!")
+
     except Exception:
         pass
+    logger.info(f"Local MongoDB Database `{db_manager.name}` --- Successfully Deleted!")
 
 
 async def startup_db_event_manager() -> None:
