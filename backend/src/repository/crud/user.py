@@ -64,14 +64,18 @@ class UserCRUDRepository(BaseCRUDRepository):
             raise Exception(f"User with ID `{id}` doesn't exist!")
         return serialize_user(user=db_user)
 
+    async def read_user_by_username(self, username: str) -> dict[str, str | EmailStr | datetime | ObjectId | None]:
+        db_user = await self.collection.find_one({"username": username})  # type: ignore
+        if not db_user:
+            raise Exception(f"User with usesrname `{username}` doesn't exist!")
+        return serialize_user(user=db_user)
+
     async def read_user_in_login(
         self, user_data: dict[str, str]
     ) -> dict[str, str | EmailStr | datetime | ObjectId | None]:
-        username = user_data["username"]
-        email = user_data["email"]
-        db_user = await self.collection.find_one({"username": username, "email": email})  # type: ignore
+        db_user = await self.collection.find_one({"username": user_data["username"]})  # type: ignore
         if not db_user:
-            raise Exception(f"The username `{username}` or email `{email}` is not found!")
+            raise Exception(f"User with username `{user_data['username']}` is not found!")
         is_correct_password = await self.is_password_verified(
             hashed_salt=db_user["hashedSalt"],  # type: ignore
             password=user_data["password"],  # type: ignore
@@ -81,7 +85,7 @@ class UserCRUDRepository(BaseCRUDRepository):
             raise Exception("Incorrect Password!")
         update_user = await self.collection.update_one(
             {"_id": db_user["_id"]},  # type: ignore
-            {"$set": {"isLoggedIn": True, "isVerified": True, "updatedAt": datetime.utcnow()}},
+            {"$set": {"isLoggedIn": True, "updatedAt": datetime.utcnow()}},
         )  # type: ignore
         logged_in_user = await self.collection.find_one(update_user.upserted_id)  # type: ignore
         return serialize_user(user=logged_in_user)
@@ -107,22 +111,20 @@ class UserCRUDRepository(BaseCRUDRepository):
             raise Exception(f"User with email verification code `{verification_code}` is not found!")
         update_user = await self.collection.update_one(
             {"_id": db_user["_id"]},  # type: ignore
-            {"$set": {"isLoggedIn": True, "isVerified": True, "updatedAt": datetime.utcnow()}},
+            {"$set": {"isVerified": True, "updatedAt": datetime.utcnow()}},
         )  # type: ignore
         logged_in_user = await self.collection.find_one(update_user.upserted_id)  # type: ignore
         return serialize_user(user=logged_in_user)  # type: ignore
 
-    async def update(
-        self, user_data: dict[str, str | EmailStr]
-    ) -> dict[str, str | EmailStr | datetime | ObjectId | None]:
-        if len(user_data) < 1:
-            raise Exception("There are no data for updating the current user!")
-        db_user = await self.collection.find_one({"_id": user_data["id"]})  # type: ignore
+    async def update_user_before_logout(self, id: str) -> dict[str, str | EmailStr | datetime | ObjectId | None]:
+        db_user = await self.collection.find_one({"_id": id})  # type: ignore
         if not db_user:
-            raise Exception(f"No user with ID `{id}` is found!")
-        update_user = await self.collection.update_one({"_id": user_data["id"]}, {"$set": user_data})  # type: ignore
-        updated_user = await self.collection.find_one({update_user.upserted_id})  # type: ignore
-        return serialize_user(updated_user)
+            raise Exception(f"User with id `{id}` is not found!")
+        update_user = await self.collection.update_one(
+            {"_id": db_user["_id"]}, {"$set": {"isLoggedIn": False, "isOtpVerified": False}}  # type: ignore
+        )  # type: ignore
+        updated_user = await self.collection.find_one(update_user.upserted_id)  # type: ignore
+        return serialize_user(user=updated_user)  # type: ignore
 
     async def delete(self, id: str) -> bool:
         db_user = await self.collection.find_one({"_id": ObjectId(id)})  # type: ignore

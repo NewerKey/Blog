@@ -70,6 +70,11 @@ class UserLoginSchema(BaseSchema):
         }
 
 
+class UserLogoutResponseSchema(BaseSchema):
+    is_logged_in: bool
+    is_otp_verified: bool
+
+
 class UserResponseSchema(BaseSchema):
     id: PyObjectId
     username: constr(strip_whitespace=True, min_length=3, to_lower=True)  # type: ignore

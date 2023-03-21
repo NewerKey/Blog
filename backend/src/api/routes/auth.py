@@ -1,11 +1,13 @@
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, Security, status
 from fastapi.encoders import jsonable_encoder
+from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import EmailStr
 from pyotp import random_base32
 from pyotp.totp import TOTP
 
 from src.api.dependency.crud import get_crud
+from src.api.dependency.user import get_current_user
 from src.repository.crud.user import UserCRUDRepository
 from src.schema.email_verification import EmailVerificationResponse
 from src.schema.otp import (
@@ -18,8 +20,23 @@ from src.schema.otp import (
     OTPValidationResponseSchema,
     OTPVerificationResponseSchema,
 )
-from src.schema.user import UserCreateSchema, UserLoginSchema, UserResponseSchema
+from src.schema.token import TokenResponseSchema
+from src.schema.user import (
+    UserBaseSchema,
+    UserCreateSchema,
+    UserLoginSchema,
+    UserLogoutResponseSchema,
+    UserResponseSchema,
+)
+from src.services.exceptions.http.exc_400 import (
+    http_exc_400_bad_passowrd_request,
+    http_exc_400_bad_request,
+    http_exc_400_credentials_bad_signin_request,
+    http_exc_400_credentials_bad_signup_request,
+)
 from src.services.security.auth.email_verification import EmailService
+from src.services.security.auth.jwt.token import token_manager
+from src.services.security.auth.oauth2.scopes import cookie_scopes_keys
 from src.services.security.auth.token.registration import (
     generate_registration_token,
     generate_url_token,
@@ -32,7 +49,7 @@ router = APIRouter(prefix="/auth")
 @router.post(
     path="/registration",
     tags=["User Authentication"],
-    description="auth:user-registration",
+    name="auth:user-registration",
     response_model=UserResponseSchema,
     status_code=status.HTTP_201_CREATED,
 )
@@ -68,7 +85,8 @@ async def register_user(
     except Exception as err:
         print(err)
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="There was an error sending email"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="There was an error sending the confirmation email",
         )
     return UserResponseSchema(**new_user)  # type: ignore
 
@@ -76,7 +94,7 @@ async def register_user(
 @router.get(
     path="/user-email-verification/{token}",
     tags=["User Authentication"],
-    description="auth:user-verification-via-email",
+    name="auth:user-email-verification",
     response_model=EmailVerificationResponse,
     status_code=status.HTTP_200_OK,
 )
@@ -90,7 +108,7 @@ async def verify_user_email(
     except Exception as err:
         print(err)
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Invalid verification code or account already verified"
+            status_code=status.HTTP_403_FORBIDDEN, detail="Invalid verification token or user already verified"
         )
     return EmailVerificationResponse(
         status="verification successful" if db_user["is_verified"] else "verification failed",
@@ -101,26 +119,70 @@ async def verify_user_email(
 @router.post(
     path="/login",
     tags=["User Authentication"],
-    description="auth:user-login",
-    response_model=UserResponseSchema,
+    name="auth:user-login",
+    response_model=TokenResponseSchema,
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def login_user(
-    payload: UserLoginSchema,
+    response: Response,
+    payload: OAuth2PasswordRequestForm = Depends(),
     user_repo: UserCRUDRepository = Depends(get_crud(repo_type=UserCRUDRepository, collection_name="users")),
-) -> UserResponseSchema:
+) -> TokenResponseSchema:
     jsonified_user_data = jsonable_encoder(obj=payload)
     try:
         db_user = await user_repo.read_user_in_login(user_data=jsonified_user_data)
     except Exception:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Incorrect credentials!")
-    return UserResponseSchema(**db_user)  # type: ignore
+    if not db_user["is_verified"]:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Unverified account. Please verify your email address!"
+        )
+    if db_user["is_otp_enabled"]:
+        if not db_user["is_otp_verified"]:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Please verify your OTP code!")
+    access_token = token_manager.generate_token(username=db_user["username"])  # type: ignore
+    refresh_token = token_manager.generate_token(username=db_user["username"], is_refresh=True)  # type: ignore
+    response.set_cookie(key="access_token", value=f"Bearer {access_token}", httponly=True)
+    return TokenResponseSchema(access_token=access_token, refresh_token=refresh_token)
+
+
+@router.delete(
+    path="/logout",
+    tags=["User Authentication"],
+    name="auth:user-logout",
+    response_model=UserLogoutResponseSchema,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def logout_account(
+    current_user: UserBaseSchema = Security(get_current_user, scopes=cookie_scopes_keys),
+    user_repo: UserCRUDRepository = Depends(get_crud(repo_type=UserCRUDRepository, collection_name="users")),
+) -> UserLogoutResponseSchema:
+    jsonified_current_user = jsonable_encoder(obj=current_user)
+    if not jsonified_current_user["isLoggedIn"]:
+        raise Exception("You cannot logout when you haven't logged in! Please login.")
+    if not current_user:
+        raise await http_exc_400_bad_request()
+    logged_out_user = await user_repo.update_user_before_logout(id=jsonified_current_user["_id"])  # type: ignore
+    return UserLogoutResponseSchema(is_logged_in=logged_out_user["is_logged_in"], is_otp_verified=logged_out_user["is_otp_verified"])  # type: ignore
+
+
+@router.get(
+    path="/current-user",
+    tags=["User Authentication"],
+    name="home:current-user-retrieval",
+    response_model=UserResponseSchema,
+    status_code=status.HTTP_200_OK,
+)
+async def get_auth_account(
+    current_user: UserBaseSchema = Security(get_current_user, scopes=cookie_scopes_keys)
+) -> UserResponseSchema:
+    return UserResponseSchema(**current_user.dict())  # type: ignore
 
 
 @router.post(
     path="/otp/generate",
     tags=["2FA"],
-    description="auth:user-2fa-generator",
+    name="auth:user-2fa-generator",
     response_model=OTPGenerationResponseSchema,
     status_code=status.HTTP_201_CREATED,
 )
@@ -152,7 +214,7 @@ async def generate_otp(
 @router.post(
     path="/otp/verify",
     tags=["2FA"],
-    description="auth:user-2fa-verification",
+    name="auth:user-2fa-verification",
     response_model=OTPVerificationResponseSchema,
     status_code=status.HTTP_202_ACCEPTED,
 )
@@ -185,7 +247,7 @@ async def verify_otp(
 @router.post(
     path="/otp/validate",
     tags=["2FA"],
-    description="auth:user-2fa-validation",
+    name="auth:user-2fa-validation",
     response_model=OTPValidationResponseSchema,
     status_code=status.HTTP_202_ACCEPTED,
 )
@@ -208,7 +270,7 @@ async def validate_otp(
 @router.post(
     path="/otp/disable",
     tags=["2FA"],
-    description="auth:user-disable-2fa",
+    name="auth:user-disable-2fa",
     response_model=OTPDisableFeatureResponseSchema,
     status_code=status.HTTP_202_ACCEPTED,
 )

@@ -21,10 +21,13 @@ pymongo
 pyotp
 python-dotenv
 python-decouple
+python-jose
 python-multipart
 python-slugify
 pytest-asyncio
 pytest-cov
 pytest-xdist
+pytz
 trio
+types-pytz
 uvicorn
