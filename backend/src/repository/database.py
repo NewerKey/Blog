@@ -24,7 +24,7 @@ class DBManager:
             return self.client.test
         return self.client[self.name]
 
-    async def create_collections(self, collection_names: list[str], collection_indexes: dict[str, str]) -> None:
+    async def create_collections(self, collection_names: list[str]) -> None:
         for collection_name in collection_names:
             try:
                 await self.db.create_collection(name=collection_name)  # type: ignore

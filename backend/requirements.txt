@@ -7,7 +7,7 @@ bson
 colorama
 email-validator
 fastapi
-fastapi-csrf-protect
+starlette-csrf
 fastapi-mail
 httpx
 isort
@@ -29,5 +29,4 @@ pytest-cov
 pytest-xdist
 pytz
 trio
-types-pytz
 uvicorn

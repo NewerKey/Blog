@@ -10,7 +10,7 @@ from src.config.manager import settings
 def initialize_application() -> FastAPI:
     app = FastAPI(lifespan=event_manager, **settings.set_backend_app_attributes)  # type: ignore
     app.add_middleware(
-        CORSMiddleware,
+        middleware_class=CORSMiddleware,
         allow_credentials=settings.IS_ALLOWED_CREDENTIALS,
         allow_origins=settings.ORIGINS,
         allow_methods=settings.METHODS,

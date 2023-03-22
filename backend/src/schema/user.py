@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import constr, EmailStr, Field
 
@@ -25,6 +26,7 @@ class UserBaseSchema(BaseSchema):
         orm_mode: bool = True
         schema_extra: dict[str, dict[str, str | bool | datetime | None]] = {
             "example": {
+                "id": "641a3679c14b677b622db74d",
                 "username": "janedoe",
                 "email": "jdoe@example.com",
                 "hashedPassword": "$2b$12$9CjFLHufR2gPeiP7BpXTKuSGNpHdxJz8rHussxO/Pyedk.jeRx9QC",
@@ -70,6 +72,14 @@ class UserLoginSchema(BaseSchema):
         }
 
 
+class UserRegistrationResponseSchema(BaseSchema):
+    registration_status: Literal["success", "failed"]
+    message: Literal[
+        "Registration successful, please verify your email address.",
+        "Registration failed, please check your credentials!",
+    ]
+
+
 class UserLogoutResponseSchema(BaseSchema):
     is_logged_in: bool
     is_otp_verified: bool
@@ -90,3 +100,7 @@ class UserResponseSchema(BaseSchema):
     is_logged_in: bool
     created_at: datetime
     updated_at: datetime | None
+
+
+class UserDeletionResponseSchema(BaseSchema):
+    is_user_deleted: bool

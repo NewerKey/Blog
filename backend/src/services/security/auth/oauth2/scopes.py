@@ -2,9 +2,9 @@ from enum import Enum
 
 
 class OAuth2BearerCookieScopes(Enum):
-    READ_CURRENT_ACCOUNT: str = "Read all information related to the current user account."  # type: ignore
-    UPDATE_CURRENT_ACCOUNT: str = "Update all information related to the current user account."  # type: ignore
-    DELETE_CURRENT_ACCOUNT: str = "Delete all current user account."  # type: ignore
+    READ_CURRENT_USER: str = "Read all information related to the current user account."  # type: ignore
+    UPDATE_CURRENT_USER: str = "Update all information related to the current user account."  # type: ignore
+    DELETE_CURRENT_USER: str = "Delete all current user account."  # type: ignore
     WRITE_BLOGS: str = "Write new blogs for the current user account."  # type: ignore
     UPDATE_BLOGS: str = "Update new blogs for the current user account."  # type: ignore
     DELETE_BLOGS: str = "Delete new blogs for the current user account."  # type: ignore

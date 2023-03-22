@@ -3,6 +3,8 @@ from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
 from fastapi.security import OAuth2
 from fastapi.security.utils import get_authorization_scheme_param
 
+from src.config.manager import settings
+
 
 class OAuth2PasswordBearerWithCookie(OAuth2):
     def __init__(
@@ -18,7 +20,7 @@ class OAuth2PasswordBearerWithCookie(OAuth2):
         super().__init__(flows=flows, scheme_name=scheme_name, auto_error=auto_error)
 
     async def __call__(self, request: Request) -> str | None:
-        authorization: str = request.cookies.get("access_token")  # type: ignore
+        authorization: str = request.cookies.get(settings.TOKEN_COOKIE_NAME)  # type: ignore
 
         scheme, param = get_authorization_scheme_param(authorization_header_value=authorization)
         if not authorization or scheme.lower() != "bearer":

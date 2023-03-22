@@ -9,9 +9,7 @@ class AppSettings(BaseSettings):
     TITLE: str = "Pala Bog Application"
     VERSION: str = config("API_VERSION", cast=str)  # type: ignore
     TIMEZONE: str = "UTC"
-    DESCRIPTION: str = (
-        f"API Version {VERSION} -- Production Settings -- Backend Application with FastAPI, Docker, and MongoDB."
-    )
+    DESCRIPTION: str = f"[Production Settings] API Application {VERSION} with FastAPI, Docker, and MongoDB."
     DEBUG: bool = False
     SERVER_HOST: str = config("BACKEND_SERVER_HOST", cast=str)  # type: ignore
     SERVER_PORT: int = config("BACKEND_SERVER_PORT", cast=int)  # type: ignore
@@ -43,6 +41,8 @@ class AppSettings(BaseSettings):
     JWT_ALGORITHM: str = config("JWT_ALGORITHM", cast=str)  # type: ignore
     ACCESS_TOKEN_EXPIRES_IN: float = config("ACCESS_TOKEN_EXPIRES_IN", cast=float)  # type: ignore
     REFRESH_TOKEN_EXPIRES_IN: float = config("REFRESH_TOKEN_EXPIRES_IN", cast=float)  # type: ignore
+    TOKEN_COOKIE_NAME: str = config("TOKEN_COOKIE_NAME", cast=str)  # type: ignore
+    CSRF_SECRET_KEY: SecretStr = SecretStr(config("CSRF_SECRET_KEY", cast=str))  # type: ignore
 
     # Password Security
     BCRYPT_HASHING_ALGORITHM: str = config("BCRYPT_HASHING_ALGORITHM", cast=str)  # type: ignore

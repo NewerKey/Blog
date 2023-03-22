@@ -8,6 +8,7 @@ from pyotp.totp import TOTP
 
 from src.api.dependency.crud import get_crud
 from src.api.dependency.user import get_current_user
+from src.config.manager import settings
 from src.repository.crud.user import UserCRUDRepository
 from src.schema.email_verification import EmailVerificationResponse
 from src.schema.otp import (
@@ -24,16 +25,11 @@ from src.schema.token import TokenResponseSchema
 from src.schema.user import (
     UserBaseSchema,
     UserCreateSchema,
-    UserLoginSchema,
     UserLogoutResponseSchema,
+    UserRegistrationResponseSchema,
     UserResponseSchema,
 )
-from src.services.exceptions.http.exc_400 import (
-    http_exc_400_bad_passowrd_request,
-    http_exc_400_bad_request,
-    http_exc_400_credentials_bad_signin_request,
-    http_exc_400_credentials_bad_signup_request,
-)
+from src.services.exceptions.http.exc_400 import http_exc_400_bad_request
 from src.services.security.auth.email_verification import EmailService
 from src.services.security.auth.jwt.token import token_manager
 from src.services.security.auth.oauth2.scopes import cookie_scopes_keys
@@ -50,14 +46,14 @@ router = APIRouter(prefix="/auth")
     path="/registration",
     tags=["User Authentication"],
     name="auth:user-registration",
-    response_model=UserResponseSchema,
+    response_model=UserRegistrationResponseSchema,
     status_code=status.HTTP_201_CREATED,
 )
 async def register_user(
     request: Request,
     payload: UserCreateSchema,
     user_repo: UserCRUDRepository = Depends(get_crud(repo_type=UserCRUDRepository, collection_name="users")),
-) -> UserResponseSchema:
+) -> UserRegistrationResponseSchema:
     jsonified_user_data = jsonable_encoder(obj=payload)
 
     if await user_repo.is_username_taken(username=jsonified_user_data["username"]):
@@ -88,7 +84,13 @@ async def register_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="There was an error sending the confirmation email",
         )
-    return UserResponseSchema(**new_user)  # type: ignore
+    registration_status = "success" if new_user else "failed"
+    message = (
+        "Registration successful, please verify your email address."
+        if new_user
+        else "Registration failed, please check your credentials!"
+    )
+    return UserRegistrationResponseSchema(registration_status=registration_status, message=message)  # type: ignore
 
 
 @router.get(
@@ -142,7 +144,7 @@ async def login_user(
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Please verify your OTP code!")
     access_token = token_manager.generate_token(username=db_user["username"])  # type: ignore
     refresh_token = token_manager.generate_token(username=db_user["username"], is_refresh=True)  # type: ignore
-    response.set_cookie(key="access_token", value=f"Bearer {access_token}", httponly=True)
+    response.set_cookie(key=settings.TOKEN_COOKIE_NAME, value=f"Bearer {access_token}", secure=True, httponly=True)
     return TokenResponseSchema(access_token=access_token, refresh_token=refresh_token)
 
 
@@ -154,6 +156,7 @@ async def login_user(
     status_code=status.HTTP_202_ACCEPTED,
 )
 async def logout_account(
+    response: Response,
     current_user: UserBaseSchema = Security(get_current_user, scopes=cookie_scopes_keys),
     user_repo: UserCRUDRepository = Depends(get_crud(repo_type=UserCRUDRepository, collection_name="users")),
 ) -> UserLogoutResponseSchema:
@@ -163,6 +166,7 @@ async def logout_account(
     if not current_user:
         raise await http_exc_400_bad_request()
     logged_out_user = await user_repo.update_user_before_logout(id=jsonified_current_user["_id"])  # type: ignore
+    response.delete_cookie("access_token")
     return UserLogoutResponseSchema(is_logged_in=logged_out_user["is_logged_in"], is_otp_verified=logged_out_user["is_otp_verified"])  # type: ignore
 
 
@@ -174,7 +178,7 @@ async def logout_account(
     status_code=status.HTTP_200_OK,
 )
 async def get_auth_account(
-    current_user: UserBaseSchema = Security(get_current_user, scopes=cookie_scopes_keys)
+    current_user: UserBaseSchema = Security(get_current_user, scopes=[cookie_scopes_keys[0]])
 ) -> UserResponseSchema:
     return UserResponseSchema(**current_user.dict())  # type: ignore
 

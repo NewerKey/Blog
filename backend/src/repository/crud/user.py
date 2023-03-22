@@ -3,7 +3,6 @@ from datetime import datetime
 from bson import ObjectId
 from fastapi.encoders import jsonable_encoder
 from pydantic import EmailStr
-from pymongo.collection import ReturnDocument
 
 from src.repository.crud.base import BaseCRUDRepository
 from src.repository.serializers.user import serialize_user
@@ -33,10 +32,13 @@ class UserCRUDRepository(BaseCRUDRepository):
         return serialize_user(user=db_user)
 
     async def read_all(self) -> list[dict[str, str | EmailStr | datetime | ObjectId | None]]:
-        db_users = []
-        async for db_user in await self.collection.find():  # type: ignore
-            db_users.append(serialize_user(db_user))
-        return db_users
+        db_users = await self.collection.find({"$query": {}, "$orderby": {"createdAt": -1}}).to_list(25)  # type: ignore
+        print(db_users)
+        jsonified_users = list()
+        for user in db_users:
+            jsonified_users.append(serialize_user(user))
+        print(jsonified_users)
+        return jsonified_users
 
     async def is_username_taken(self, username: str) -> bool:
         username = await self.collection.find_one({"username": username})  # type: ignore
@@ -67,7 +69,7 @@ class UserCRUDRepository(BaseCRUDRepository):
     async def read_user_by_username(self, username: str) -> dict[str, str | EmailStr | datetime | ObjectId | None]:
         db_user = await self.collection.find_one({"username": username})  # type: ignore
         if not db_user:
-            raise Exception(f"User with usesrname `{username}` doesn't exist!")
+            raise Exception(f"User with username `{username}` doesn't exist!")
         return serialize_user(user=db_user)
 
     async def read_user_in_login(
@@ -126,10 +128,12 @@ class UserCRUDRepository(BaseCRUDRepository):
         updated_user = await self.collection.find_one(update_user.upserted_id)  # type: ignore
         return serialize_user(user=updated_user)  # type: ignore
 
-    async def delete(self, id: str) -> bool:
-        db_user = await self.collection.find_one({"_id": ObjectId(id)})  # type: ignore
+    async def delete_user_by_id(self, id: str) -> bool:
+        db_user = await self.collection.find_one({"_id": jsonable_encoder(obj=id)})  # type: ignore
         if not db_user:
             raise Exception(f"User with ID `{id}` is not found!")
 
-        await self.collection.delete_one({"_id": ObjectId(id)})  # type: ignore
+        deleted_user = await self.collection.delete_one({"_id": db_user["_id"]})  # type: ignore
+        if not deleted_user:
+            raise Exception(f"User deletion failed!")
         return True
